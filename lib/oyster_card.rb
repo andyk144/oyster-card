@@ -5,25 +5,23 @@ class OysterCard
 
   def initialize(balance = 0)
     @balance = balance
-    @in_journey = false
     @last_touch_in = nil
   end
 
   def touch_in(station)
     raise 'You are already touched in' if touched_in?
     raise 'Not enough balance' if @balance < MIN_CAPACITY
-    @in_journey = true
     @last_touch_in = station
   end
 
   def touch_out
     raise "You've already touched out" unless touched_in?
     deduct(MIN_CAPACITY)
-    @in_journey = false
+    @last_touch_in = nil
   end
 
   def touched_in?
-    @in_journey
+    @last_touch_in
   end
 
   def top_up(amount)
