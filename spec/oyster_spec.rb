@@ -1,4 +1,5 @@
 require 'oyster_card'
+require 'journey'
 
 describe OysterCard do
   subject(:oyster_card) { OysterCard.new }
@@ -8,14 +9,6 @@ describe OysterCard do
 
   it 'responds with a balance of 0' do
     expect(oyster_card.balance).to eq 0
-  end
-
-  it 'starts with an empty journey history' do
-    expect(oyster_card.journey_history).to be_empty
-  end
-
-  it 'has a record of the last touched in station' do
-    expect(oyster_card).to respond_to (:last_touch_in)
   end
 
   describe '#top_up' do
@@ -37,15 +30,10 @@ describe OysterCard do
       expect{ oyster_card.touch_in(start_station) }.to raise_error 'Not enough balance'
     end
 
-    it 'records the last station touched in' do
-      oyster_card10.touch_in(start_station)
-      expect(oyster_card10.last_touch_in).to eq start_station
-    end
-
     context 'when already touched in' do
-      it 'raises an error' do
-        allow(oyster_card).to receive(:touched_in?).and_return true
-        expect{ oyster_card.touch_in(start_station) }.to raise_error 'You are already touched in'
+      it 'charges a penalty fare if touched in again without touching out' do
+        oyster_card10.touch_in(start_station)
+        expect{ oyster_card10.touch_in(start_station) }.to change {oyster_card10.balance}.by(described_class::PENALTY_FARE)
       end
     end
   end
@@ -56,40 +44,37 @@ describe OysterCard do
       oyster_card10.touch_in(start_station)
       expect { oyster_card10.touch_out(end_station) }.to change { oyster_card10.balance }.from(10).to(9)
     end
-
-    it 'forgets the touched in station on touch out' do
-      oyster_card10.touch_in(start_station)
-      oyster_card10.touch_out(end_station)
-      expect(oyster_card10.last_touch_in).to be_nil
-    end
-
-    it 'records the exit station' do
-      oyster_card10.touch_in(start_station)
-      oyster_card10.touch_out(end_station)
-      expect(oyster_card10.last_touch_out).to eq end_station
-    end
   end
 
   describe '#touched_in?' do
     it 'returns true when touched in' do
       oyster_card10.touch_in(start_station)
-      expect(oyster_card10).to be_touched_in
+      expect(oyster_card10.journey_history.in_journey?).to be_in_journey
     end
 
     it 'returns false when not touched in' do
       oyster_card10.touch_in(start_station)
       oyster_card10.touch_out(end_station)
-      expect(oyster_card10).not_to be_touched_in
+      expect(oyster_card10.journey_history.in_journey?).not_to be_in_journey
     end
   end
 
-  describe '#journey_history' do
-    let(:journey) {{:Start_Destination => start_station, :End_Destination => end_station}}
-    it 'shows your journey history' do
+  describe '#fare' do
+    it 'charges the minimum fare for a journey' do
       oyster_card10.touch_in(start_station)
-      oyster_card10.touch_out(end_station)
-      expect(oyster_card10.journey_history).to include(journey)
+      expect(oyster_card10.touch_out(end_station)).to change { oyster_card10.balance }.by(described_class::MIN_CAPACITY)
+    end
+
+    it 'raises a penalty fare message' do
+      expect{ oyster_card10.fare(described_class::PENALTY_FARE) }.to raise_error 'Penalty fare charged'
+
+    end
+
+    it 'charges the penalty fare' do
+      oyster_card10.touch_out(start_station)
+      expect{ oyster_card10.touch_out(end_station) }.to change { oyster_card10.balance }.by(described_class::PENALTY_FARE)
     end
   end
+
 
 end

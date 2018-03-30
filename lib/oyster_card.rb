@@ -1,32 +1,25 @@
+require_relative 'journey'
+
 class OysterCard
-  attr_reader :balance, :in_journey, :last_touch_in, :last_touch_out, :journey_history
+  attr_reader :balance, :journey_history
   MAX_CAPACITY = 90
   MIN_CAPACITY = 1
+  PENALTY_FARE = 5
 
   def initialize(balance = 0)
     @balance = balance
-    @last_touch_in = nil
-    @last_touch_out = nil
-    @journey_history = {}
+    @journey_history = Journey.new
   end
 
   def touch_in(station)
-    raise 'You are already touched in' if touched_in?
+    fare(PENALTY_FARE) if @journey_history.in_journey?
     raise 'Not enough balance' if @balance < MIN_CAPACITY
-    @last_touch_in = station
-    @journey_history[:Start_Destination] = @last_touch_in
+    @journey_history.journey_start(station)
   end
 
   def touch_out(station)
-    raise "You've already touched out" unless touched_in?
-    deduct(MIN_CAPACITY)
-    @last_touch_in = nil
-    @last_touch_out = station
-    @journey_history[:End_Destination] = @last_touch_out
-  end
-
-  def touched_in?
-    @last_touch_in
+    journey_history.in_journey? ? fare(MIN_CAPACITY) : fare(PENALTY_FARE)
+    @journey_history.journey_end(station)
   end
 
   def top_up(amount)
@@ -36,8 +29,9 @@ class OysterCard
 
   private
 
-  def deduct(amount)
+  def fare(amount)
     @balance -= amount
+    raise 'Penalty fare charged' if amount == PENALTY_FARE
   end
 
   def exceed_limit?(amount)
